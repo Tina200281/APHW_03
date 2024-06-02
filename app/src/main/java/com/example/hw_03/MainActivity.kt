@@ -5,6 +5,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
@@ -17,13 +19,25 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.example.hw_03.ui.theme.HW_03Theme
+import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
+    private val handler = Handler(Looper.getMainLooper())
+    private val runnable = object : Runnable {
+        override fun run() {
+            scheduleOneTimeWork()
+            handler.postDelayed(this, TimeUnit.MINUTES.toMillis(2))
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -32,6 +46,8 @@ class MainActivity : ComponentActivity() {
 
         val serviceIntent = Intent(this, InternetService::class.java)
         startService(serviceIntent)
+
+        handler.post(runnable)
 
         setContent {
             HW_03Theme {
@@ -49,7 +65,7 @@ class MainActivity : ComponentActivity() {
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(text = isInternetConnected, fontWeight = FontWeight.Bold, fontSize = 30.sp)
+            Text(text = isInternetConnected, fontWeight = FontWeight.Bold, color = Color.Gray)
         }
     }
 
@@ -74,5 +90,16 @@ class MainActivity : ComponentActivity() {
                 // Permission denied, inform the user about the limitation or request again.
             }
         }
+    }
+
+    private fun scheduleOneTimeWork() {
+        val workRequest = OneTimeWorkRequestBuilder<BluetoothAirplaneWorker>()
+            .build()
+        WorkManager.getInstance(this).enqueue(workRequest)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        handler.removeCallbacks(runnable)
     }
 }
